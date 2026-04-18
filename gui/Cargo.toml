@@ -10,8 +10,9 @@ dsv-core = { path = "../core" }
 eframe = "0.32"
 egui_extras = "0.32"
 env_logger = "0.11"
+exn-anyhow = "0.1.0"
 log = "0.4"
 rfd = "0.15"
 serde = { version = "1.0", features = ["derive"] }
 toml = { version = "0.9", features = ["preserve_order"] }
-type-crawler = "0.1"
+type-crawler = { git = "https://github.com/AetiasHax/type-crawler", branch = "0.2" }

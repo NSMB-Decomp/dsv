@@ -2,7 +2,7 @@ use std::borrow::Cow;
 
 use dsv_core::state::State;
 use eframe::egui::{self, Widget};
-use type_crawler::Types;
+use type_crawler::{TypePath, Types};
 
 use crate::{
     ui::columns,
@@ -72,16 +72,22 @@ impl<'a> TypeInstance<'a> {
             type_crawler::TypeKind::Typedef(typedef) => {
                 self.with_type(typedef.underlying_type()).into_data_widget(ui, types)
             }
-            type_crawler::TypeKind::Named(name) => match name.as_str() {
+            type_crawler::TypeKind::Named(path) => match path.to_string().as_str() {
                 "q20" => Box::new(Fx32Widget::new(ui, self)),
                 _ => {
-                    if let Some(type_decl) = types.get(name) {
+                    if let Some(type_decl) = types.get(path.clone()) {
                         self.with_type(type_decl).into_data_widget(ui, types)
                     } else {
-                        Box::new(NotFoundWidget { name: name.clone() })
+                        Box::new(NotFoundWidget { path: path.clone() })
                     }
                 }
             },
+            type_crawler::TypeKind::TemplateParam(_) => {
+                Box::new(WipWidget { data_type: "template parameters" })
+            }
+            type_crawler::TypeKind::TemplateClassSpec(struct_decl) => {
+                Box::new(StructWidget::new(ui, struct_decl, self))
+            }
         }
     }
 }
@@ -429,13 +435,13 @@ impl DataWidget for WipWidget {
 }
 
 struct NotFoundWidget {
-    name: String,
+    path: TypePath,
 }
 
 impl DataWidget for NotFoundWidget {
     fn render_value(&mut self, ui: &mut egui::Ui, _types: &Types, _state: &mut State) {
         ui.label(
-            egui::RichText::new(format!("Type '{}' not found", self.name))
+            egui::RichText::new(format!("Type '{}' not found", self.path))
                 .color(egui::Color32::RED),
         );
     }
@@ -497,7 +503,7 @@ impl<'a> DataWidget for Fx32Widget<'a> {
     fn render_compound(&mut self, ui: &mut egui::Ui, types: &Types, state: &mut State) {
         ui.indent("fx32_compound", |ui| {
             columns::fixed_columns(ui, COLUMN_WIDTHS, |columns| {
-                ValueBadge::new(types, &type_crawler::TypeKind::Named("q20".to_string()))
+                ValueBadge::new(types, &type_crawler::TypeKind::Named(TypePath::global("q20")))
                     .render(&mut columns[0]);
                 columns[1].label("Value");
                 self.render_value(&mut columns[2], types, state);
@@ -598,7 +604,8 @@ impl<'a> StructWidget<'a> {
 
     fn render_base_types_and_fields(&self, ui: &mut egui::Ui, types: &'a Types, state: &mut State) {
         for base_type in self.struct_decl.base_types() {
-            let Some(base_struct) = types.get(base_type).and_then(|ty| ty.as_struct(types)) else {
+            let Some(base_struct) = types.get(base_type.clone()).and_then(|ty| ty.as_struct(types))
+            else {
                 ui.label(format!("Base type '{base_type}' not found"));
                 continue;
             };
@@ -707,6 +714,7 @@ impl<'a> ValueBadge<'a> {
             });
         }
     }
+
     fn new(types: &'a Types, kind: &'a type_crawler::TypeKind) -> Self {
         match kind {
             type_crawler::TypeKind::USize { .. } => ValueBadge {
@@ -872,7 +880,7 @@ impl<'a> ValueBadge<'a> {
             type_crawler::TypeKind::Union(union_decl) => Self::new_union(union_decl),
             type_crawler::TypeKind::Enum(enum_decl) => Self::new_enum(enum_decl),
             type_crawler::TypeKind::Typedef(typedef) => Self::new(types, typedef.underlying_type()),
-            type_crawler::TypeKind::Named(name) => match name.as_str() {
+            type_crawler::TypeKind::Named(path) => match path.to_string().as_str() {
                 "q20" => ValueBadge {
                     text: "q20".into(),
                     tooltip: None,
@@ -880,7 +888,7 @@ impl<'a> ValueBadge<'a> {
                     color: "#ffffff",
                 },
                 _ => {
-                    let Some(ty) = types.get(name) else {
+                    let Some(ty) = types.get(path.clone()) else {
                         return ValueBadge {
                             text: "unknown".into(),
                             tooltip: None,
@@ -891,6 +899,15 @@ impl<'a> ValueBadge<'a> {
                     Self::new(types, ty)
                 }
             },
+            type_crawler::TypeKind::TemplateParam(name) => ValueBadge {
+                text: name.into(),
+                tooltip: None,
+                background: "#000000ff",
+                color: "#ffffff",
+            },
+            type_crawler::TypeKind::TemplateClassSpec(struct_decl) => {
+                Self::new_template_class_spec(struct_decl)
+            }
         }
     }
 
@@ -914,6 +931,18 @@ impl<'a> ValueBadge<'a> {
             (name.into(), None)
         } else {
             ("class".into(), full_name.map(|n| n.to_string()))
+        };
+        ValueBadge { text, tooltip, background: "#af1cc9", color: "#ffffff" }
+    }
+
+    fn new_template_class_spec(struct_decl: &'a type_crawler::StructDecl) -> Self {
+        let full_name = struct_decl.name();
+        let (text, tooltip) = if let Some(name) = full_name
+            && name.len() <= 10
+        {
+            (name.into(), None)
+        } else {
+            ("template class".into(), full_name.map(|n| n.to_string()))
         };
         ValueBadge { text, tooltip, background: "#af1cc9", color: "#ffffff" }
     }

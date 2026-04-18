@@ -206,13 +206,15 @@ impl ReadIntValue for type_crawler::TypeKind {
             type_crawler::TypeKind::Typedef(typedef) => {
                 typedef.underlying_type().read_int_value(types, instance)
             }
-            type_crawler::TypeKind::Named(name) => {
-                if let Some(ty) = types.get(name) {
+            type_crawler::TypeKind::Named(path) => {
+                if let Some(ty) = types.get(path.clone()) {
                     ty.read_int_value(types, instance)
                 } else {
                     None
                 }
             }
+            type_crawler::TypeKind::TemplateParam(_) => None,
+            type_crawler::TypeKind::TemplateClassSpec(_) => None,
         }
     }
 }

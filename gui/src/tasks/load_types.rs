@@ -6,7 +6,8 @@ use std::{
 };
 
 use anyhow::{Context, Result};
-use type_crawler::{Env, EnvOptions, TypeCrawler, Types, WordSize};
+use exn_anyhow::into_anyhow;
+use type_crawler::{Env, EnvOptions, TypeCrawler, WordSize};
 
 pub struct LoadTypesTask {
     types: Arc<Mutex<type_crawler::Types>>,
@@ -65,14 +66,15 @@ impl LoadTypesTask {
                 short_enums,
                 signed_char: true,
             });
-            let mut crawler =
-                TypeCrawler::new(env).context("Failed to create type crawler").unwrap();
+            let mut crawler = TypeCrawler::new(env)
+                .map_err(into_anyhow)
+                .context("Failed to create type crawler")
+                .unwrap();
             include_paths.iter().for_each(|path| {
                 crawler.add_include_path(path).unwrap();
             });
 
             let start = Instant::now();
-            let mut types = Types::new();
             for header in &headers {
                 if terminate_rx.try_recv().is_ok() {
                     log::info!("Type loading task terminated early.");
@@ -80,12 +82,13 @@ impl LoadTypesTask {
                 }
 
                 *status.lock().unwrap() = format!("{}", header.display());
-                let new_types = crawler.parse_file(header).unwrap();
-                match types.extend(new_types) {
-                    Ok(()) => {}
-                    Err(err) => panic!("Error extending types: {err}"),
-                }
+                crawler
+                    .parse_file_with_options(header, type_crawler::ParseOptions {
+                        language: type_crawler::Language::Cpp,
+                    })
+                    .unwrap();
             }
+            let types = crawler.into_types();
             let end = Instant::now();
             *status.lock().unwrap() =
                 format!("Loaded {} types in {:.2}s", types.len(), (end - start).as_secs_f32());
