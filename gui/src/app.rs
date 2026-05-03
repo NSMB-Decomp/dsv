@@ -12,7 +12,7 @@ use crate::{
     config::Config,
     tasks::load_types::{LoadTypesTask, LoadTypesTaskOptions},
     ui::text_field_list::TextFieldList,
-    views::{View, ph, st},
+    views::{View, ph, st, nsmb},
 };
 
 pub struct DsvApp {
@@ -247,6 +247,7 @@ impl DsvApp {
         let view: Box<dyn View> = match gamecode.as_str() {
             "BKIJ" | "BKIP" | "BKIE" => Box::new(st::View::new(gdb_client)),
             "AZEJ" | "AZEP" | "AZEE" => Box::new(ph::View::new(gdb_client)),
+            "A2DE" => Box::new(nsmb::View::new(gdb_client)), // New Super Mario Bros.
             _ => {
                 gdb_client.disconnect()?;
                 return Err(anyhow::anyhow!("Unsupported game code: {}", gamecode));

@@ -11,6 +11,7 @@ use crate::{
 
 pub mod ph;
 pub mod st;
+pub mod nsmb;
 
 pub trait View {
     fn render_side_panel(

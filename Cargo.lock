@@ -3180,7 +3180,7 @@ checksum = "d2df906b07856748fa3f6e0ad0cbaa047052d4a7dd609e231c4f72cee8c36f31"
 [[package]]
 name = "type-crawler"
 version = "0.1.0"
-source = "git+https://github.com/AetiasHax/type-crawler?branch=0.2#0dd62a3316b697e5e66b45d619606086ec05ce55"
+source = "git+https://github.com/AetiasHax/type-crawler?branch=0.2#f65f6bb21cae88885e8a4e168db316cb75734155"
 dependencies = [
  "clang",
  "derive_more",
